@@ -134,6 +134,21 @@ async function sendEmail(opts: SendEmailOptions): Promise<{
       html,
     });
 
+    if (result.error) {
+      const errorMessage = result.error.message || JSON.stringify(result.error);
+      console.error(`[Email] Resend API error sending ${type} to ${to}:`, errorMessage);
+
+      await prisma.notificationLog.update({
+        where: { id: logId },
+        data: {
+          status: "FAILED",
+          errorMessage: errorMessage.substring(0, 500),
+        },
+      });
+
+      return { success: false, error: errorMessage };
+    }
+
     const messageId = (result.data as { id?: string } | null)?.id;
 
     // Update log to SENT
@@ -605,6 +620,20 @@ export async function retryNotification(notificationLogId: string): Promise<{
       subject: `[Retry] ${log.subject}`,
       html: `<p>This is a retry of a previously failed notification regarding application ${log.leaveApplication.referenceNumber}.</p>`,
     });
+
+    if (result.error) {
+      const errorMessage = result.error.message || JSON.stringify(result.error);
+      await prisma.notificationLog.update({
+        where: { id: notificationLogId },
+        data: {
+          status: "FAILED",
+          errorMessage: errorMessage.substring(0, 500),
+          attemptCount: { increment: 1 },
+          lastAttemptAt: new Date(),
+        },
+      });
+      return { success: false, error: errorMessage };
+    }
 
     const messageId = (result.data as { id?: string } | null)?.id;
 

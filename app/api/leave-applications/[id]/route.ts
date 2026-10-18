@@ -147,27 +147,29 @@ export async function PATCH(
     );
   }
 
-  // Send notifications async (failures don't affect the completed approval)
+  // Send notifications (failures don't affect the completed approval)
   if (action === "APPROVED" || action === "DECLINED") {
-    sendStatusUpdateNotifications({
-      leaveApplicationId: id,
-      referenceNumber: application.referenceNumber,
-      employeeName: application.employeeName,
-      employeeEmail: application.employeeEmail,
-      leaveType: application.leaveTypeSnapshot,
-      startDate: application.startDate,
-      endDate: application.endDate,
-      totalDays: application.totalDays,
-      reason: application.reason,
-      newStatus: action as "APPROVED" | "DECLINED",
-      remarks,
-      performedByName,
-      reportingManagerEmail: application.reportingManagerEmail,
-      handoverPersonEmail: application.handoverPersonEmail,
-      handoverPersonName: application.handoverPersonName,
-    }).catch((err) => {
+    try {
+      await sendStatusUpdateNotifications({
+        leaveApplicationId: id,
+        referenceNumber: application.referenceNumber,
+        employeeName: application.employeeName,
+        employeeEmail: application.employeeEmail,
+        leaveType: application.leaveTypeSnapshot,
+        startDate: application.startDate,
+        endDate: application.endDate,
+        totalDays: application.totalDays,
+        reason: application.reason,
+        newStatus: action as "APPROVED" | "DECLINED",
+        remarks,
+        performedByName,
+        reportingManagerEmail: application.reportingManagerEmail,
+        handoverPersonEmail: application.handoverPersonEmail,
+        handoverPersonName: application.handoverPersonName,
+      });
+    } catch (err) {
       console.error("[Email] Status update notifications failed:", err);
-    });
+    }
   }
 
   return Response.json({

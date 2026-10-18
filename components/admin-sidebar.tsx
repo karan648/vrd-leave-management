@@ -13,6 +13,7 @@ import {
   ChevronRight,
   LogOut,
   Shield,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,11 @@ const NAV_ITEMS = [
     href: "/admin/users",
     icon: UserCog,
     label: "Admin Users",
+  },
+  {
+    href: "/admin/email-preview",
+    icon: Mail,
+    label: "Email Templates",
   },
   {
     href: "/admin/settings",

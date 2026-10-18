@@ -209,23 +209,25 @@ export async function POST(request: NextRequest) {
   }
 
   // Send notifications after successful DB commit (failures don't affect saved data)
-  sendSubmissionNotifications({
-    leaveApplicationId: application.id,
-    referenceNumber: application.referenceNumber,
-    employeeName: application.employeeName,
-    employeeEmail: application.employeeEmail,
-    leaveType: leaveType.name,
-    startDate: application.startDate,
-    endDate: application.endDate,
-    totalDays: application.totalDays,
-    reason: application.reason,
-    reportingManagerName: application.reportingManagerName,
-    reportingManagerEmail: application.reportingManagerEmail,
-    handoverPersonName: application.handoverPersonName,
-    handoverPersonEmail: application.handoverPersonEmail,
-  }).catch((err) => {
+  try {
+    await sendSubmissionNotifications({
+      leaveApplicationId: application.id,
+      referenceNumber: application.referenceNumber,
+      employeeName: application.employeeName,
+      employeeEmail: application.employeeEmail,
+      leaveType: leaveType.name,
+      startDate: application.startDate,
+      endDate: application.endDate,
+      totalDays: application.totalDays,
+      reason: application.reason,
+      reportingManagerName: application.reportingManagerName,
+      reportingManagerEmail: application.reportingManagerEmail,
+      handoverPersonName: application.handoverPersonName,
+      handoverPersonEmail: application.handoverPersonEmail,
+    });
+  } catch (err) {
     console.error("[Email] Post-submission notifications failed:", err);
-  });
+  }
 
   return Response.json(
     {
