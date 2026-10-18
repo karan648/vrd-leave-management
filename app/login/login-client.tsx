@@ -11,7 +11,6 @@ import {
   EyeOff,
   ArrowRight,
   ShieldAlert,
-  Sparkles,
   CheckCircle2,
 } from "lucide-react";
 
@@ -61,12 +60,6 @@ export function LoginClient() {
     }
   }
 
-  function handleQuickFill() {
-    setEmail("admin@example.com");
-    setPassword("VrdAdmin2026!");
-    setError(null);
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       {/* Background ambient lighting */}
@@ -101,26 +94,6 @@ export function LoginClient() {
 
         {/* Card */}
         <div className="bg-[#1e2840]/90 border border-[#334155] backdrop-blur-xl py-8 px-6 shadow-2xl rounded-2xl sm:px-10">
-          {/* Quick Demo Fill Banner */}
-          <div className="mb-6 p-3.5 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-center justify-between gap-3">
-            <div className="text-xs text-blue-200">
-              <p className="font-semibold text-blue-300 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" />
-                Default Admin Credentials
-              </p>
-              <p className="text-[11px] text-blue-300/80 mt-0.5">
-                admin@example.com / VrdAdmin2026!
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleQuickFill}
-              className="text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
-            >
-              Fill Demo
-            </button>
-          </div>
-
           {error && (
             <div className="mb-6 p-3.5 bg-red-500/15 border border-red-500/30 rounded-xl flex items-start gap-3">
               <ShieldAlert className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
@@ -155,7 +128,7 @@ export function LoginClient() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="admin@example.com"
+                  placeholder="admin@vrdexports.in"
                   className="w-full bg-[#0f172a]/70 border border-[#334155] rounded-xl pl-10 pr-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
               </div>
