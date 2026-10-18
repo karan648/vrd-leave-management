@@ -1,0 +1,315 @@
+// =============================================================================
+// VRD Exports Leave Management — Prisma Schema
+// =============================================================================
+// Database: Neon PostgreSQL
+// ORM: Prisma
+// Connection: Pooled URL for queries, Direct URL for migrations
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  HR_ADMIN
+  MANAGER
+  HR_VIEWER
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum NotificationType {
+  SUBMISSION_CONFIRMATION  // to employee
+  MANAGER_NOTIFICATION     // to reporting manager
+  HR_NOTIFICATION          // to HR
+  ADMIN_NOTIFICATION       // to admin mailbox
+  HANDOVER_NOTIFICATION    // to assigned/handover person
+  APPROVAL_NOTIFICATION    // to employee on approval
+  REJECTION_NOTIFICATION   // to employee on rejection
+  STATUS_UPDATE_MANAGER    // to manager on status change
+  STATUS_UPDATE_HR         // to HR on status change
+}
+
+// =============================================================================
+// DEPARTMENT
+// =============================================================================
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String
+  code        String?  @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employees        Employee[]
+  leaveApplications LeaveApplication[]
+
+  @@index([isActive])
+  @@map("departments")
+}
+
+// =============================================================================
+// LEAVE TYPE
+// =============================================================================
+
+model LeaveType {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  description     String?
+  isActive        Boolean  @default(true)
+  annualAllowance Int?     // days per year, null = unlimited
+  isPaid          Boolean  @default(true)
+  allowHalfDay    Boolean  @default(false)
+  trackBalance    Boolean  @default(false)
+  eligibilityRules String? // JSON string for future use
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  leaveApplications LeaveApplication[]
+
+  @@index([isActive])
+  @@map("leave_types")
+}
+
+// =============================================================================
+// EMPLOYEE
+// =============================================================================
+
+model Employee {
+  id               String   @id @default(cuid())
+  employeeId       String   @unique // company-assigned ID
+  fullName         String
+  email            String   @unique
+  departmentId     String?
+  managerName      String?
+  managerEmail     String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  @@index([employeeId])
+  @@index([email])
+  @@index([isActive])
+  @@map("employees")
+}
+
+// =============================================================================
+// LEAVE APPLICATION
+// =============================================================================
+
+model LeaveApplication {
+  id                    String      @id @default(cuid())
+  referenceNumber       String      @unique
+  
+  // Employee info — snapshotted at submission for auditability
+  employeeName          String
+  employeeEmail         String
+  employeeIdNumber      String?     // company-assigned employee ID (optional)
+  
+  // Foreign keys — retained even if department/leave type deactivated
+  departmentId          String?
+  leaveTypeId           String?
+  
+  // Snapshot of names at time of submission (preserves history if records renamed/deleted)
+  departmentSnapshot    String      // department name at submission
+  leaveTypeSnapshot     String      // leave type name at submission
+  
+  // Leave dates
+  startDate             DateTime
+  endDate               DateTime
+  totalDays             Float       // supports half-days
+  isHalfDay             Boolean     @default(false)
+  halfDayPeriod         String?     // "MORNING" | "AFTERNOON"
+  
+  // Reason
+  reason                String
+  
+  // Manager info
+  reportingManagerName  String
+  reportingManagerEmail String
+  
+  // Handover/assigned person
+  handoverPersonName    String?
+  handoverPersonEmail   String?
+  
+  // Optional contact
+  contactDuringLeave    String?
+  
+  // Additional notes
+  additionalNotes       String?
+  
+  // Status
+  status                LeaveStatus @default(PENDING)
+  
+  // Metadata
+  submittedAt           DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  
+  // Idempotency key to prevent duplicate submissions
+  idempotencyKey        String?     @unique
+
+  // Relations
+  department       Department?        @relation(fields: [departmentId], references: [id])
+  leaveType        LeaveType?         @relation(fields: [leaveTypeId], references: [id])
+  approvalHistory  ApprovalHistory[]
+  notifications    NotificationLog[]
+
+  @@index([referenceNumber])
+  @@index([status])
+  @@index([employeeEmail])
+  @@index([employeeIdNumber])
+  @@index([departmentId])
+  @@index([leaveTypeId])
+  @@index([submittedAt])
+  @@index([startDate, endDate])
+  @@map("leave_applications")
+}
+
+// =============================================================================
+// APPROVAL HISTORY (Audit Trail)
+// =============================================================================
+
+model ApprovalHistory {
+  id                  String      @id @default(cuid())
+  leaveApplicationId  String
+  
+  fromStatus          LeaveStatus?
+  toStatus            LeaveStatus
+  remarks             String?
+  
+  // Who performed the action (admin user id, or "SYSTEM" for automated)
+  performedBy         String      @default("SYSTEM")
+  performedByName     String?
+  
+  performedAt         DateTime    @default(now())
+
+  leaveApplication LeaveApplication @relation(fields: [leaveApplicationId], references: [id])
+
+  @@index([leaveApplicationId])
+  @@index([performedAt])
+  @@map("approval_history")
+}
+
+// =============================================================================
+// ADMIN / DASHBOARD USER
+// =============================================================================
+// NOTE: This is a user record for the dashboard interface only.
+// It does NOT create a secure login account.
+// Authentication is NOT implemented in this version.
+// The `authProviderSub` and `authProviderType` fields are reserved
+// for future integration with an identity provider (e.g., Clerk, Auth0, NextAuth).
+
+model AdminUser {
+  id               String    @id @default(cuid())
+  fullName         String
+  email            String    @unique
+  username         String?   @unique
+  passwordHash     String?   // bcrypt/scrypt hashed password
+  role             AdminRole @default(HR_VIEWER)
+  departmentId     String?   // optional department association
+  isActive         Boolean   @default(true)
+  
+  // Reserved for future authentication integration
+  authProviderSub  String?   // external identity provider subject (e.g., Auth0 sub)
+  authProviderType String?   // e.g., "auth0", "clerk", "google"
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@map("admin_users")
+}
+
+// =============================================================================
+// COMPANY SETTING
+// =============================================================================
+
+model CompanySetting {
+  id                      String   @id @default(cuid())
+  key                     String   @unique
+  value                   String   // JSON-encoded value
+  description             String?
+  updatedAt               DateTime @updatedAt
+
+  @@map("company_settings")
+}
+
+// =============================================================================
+// HOLIDAY
+// =============================================================================
+
+model Holiday {
+  id          String   @id @default(cuid())
+  name        String
+  date        DateTime
+  isRecurring Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+  @@map("holidays")
+}
+
+// =============================================================================
+// NOTIFICATION LOG
+// =============================================================================
+
+model NotificationLog {
+  id                  String             @id @default(cuid())
+  leaveApplicationId  String
+  
+  type                NotificationType
+  recipientEmail      String
+  recipientName       String?
+  subject             String
+  
+  status              NotificationStatus @default(PENDING)
+  resendMessageId     String?            // Resend's message ID for tracking
+  errorMessage        String?
+  
+  // Idempotency: prevent re-sending the same notification type for same application
+  idempotencyKey      String?            @unique
+  
+  attemptCount        Int                @default(0)
+  lastAttemptAt       DateTime?
+  sentAt              DateTime?
+  
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  leaveApplication LeaveApplication @relation(fields: [leaveApplicationId], references: [id])
+
+  @@index([leaveApplicationId])
+  @@index([status])
+  @@index([recipientEmail])
+  @@map("notification_logs")
+}
