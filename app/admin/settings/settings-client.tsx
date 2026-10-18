@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Bell,
+  UserCheck,
 } from "lucide-react";
 
 export function SettingsClient() {
@@ -21,8 +22,12 @@ export function SettingsClient() {
 
   const [settings, setSettings] = useState({
     company_name: "VRD Exports",
-    hr_notification_email: "hr@vrdexports.com",
-    admin_notification_email: "admin@vrdexports.com",
+    hr_notification_email: "hr@vrdexports.in",
+    admin_notification_email: "admin@vrdexports.in",
+    ea_notification_email: "ea@vrdexports.in",
+    owner_notification_email: "owner@vrdexports.in",
+    approver_notification_emails: "",
+    additional_notification_emails: "",
     count_weekends: false,
     allow_half_day: true,
     require_manager_approval_first: true,
@@ -43,6 +48,16 @@ export function SettingsClient() {
             (data.data.admin_notification_email as string) ??
             (data.data.leave_notification_email as string) ??
             prev.admin_notification_email,
+          ea_notification_email:
+            (data.data.ea_notification_email as string) ?? prev.ea_notification_email,
+          owner_notification_email:
+            (data.data.owner_notification_email as string) ?? prev.owner_notification_email,
+          approver_notification_emails:
+            (data.data.approver_notification_emails as string) ??
+            prev.approver_notification_emails,
+          additional_notification_emails:
+            (data.data.additional_notification_emails as string) ??
+            prev.additional_notification_emails,
           count_weekends: (data.data.count_weekends as boolean) ?? prev.count_weekends,
           allow_half_day: (data.data.allow_half_day as boolean) ?? prev.allow_half_day,
           require_manager_approval_first:
@@ -55,6 +70,35 @@ export function SettingsClient() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function getApproverList(): string[] {
+    if (!settings.approver_notification_emails) return [];
+    return settings.approver_notification_emails
+      .split(/[,;\n\r]+/)
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+  }
+
+  function handleFill10Approvers() {
+    const default10 = [
+      "director@vrdexports.in",
+      "operations.head@vrdexports.in",
+      "hr.head@vrdexports.in",
+      "hr.executive@vrdexports.in",
+      "ea@vrdexports.in",
+      "merch.manager@vrdexports.in",
+      "prod.manager@vrdexports.in",
+      "qa.manager@vrdexports.in",
+      "finance.head@vrdexports.in",
+      "admin@vrdexports.in",
+    ].join(",\n");
+    setSettings((prev) => ({ ...prev, approver_notification_emails: default10 }));
+  }
+
+  function removeApprover(emailToRemove: string) {
+    const current = getApproverList().filter((e) => e !== emailToRemove);
+    setSettings((prev) => ({ ...prev, approver_notification_emails: current.join(", ") }));
   }
 
   useEffect(() => {
@@ -157,13 +201,18 @@ export function SettingsClient() {
         </div>
 
         {/* Email Notification Channels */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
             <Bell className="w-5 h-5 text-blue-600" />
-            <h2 className="font-bold text-slate-900 text-base">Email Notification Routing</h2>
+            <div>
+              <h2 className="font-bold text-slate-900 text-base">Email Notification Routing</h2>
+              <p className="text-xs text-slate-400">
+                Configure all parties who receive instant leave submission requests, approval reviews, and decision notices.
+              </p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase mb-1.5">
                 HR Department Notification Email
@@ -171,7 +220,7 @@ export function SettingsClient() {
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
-                  type="email"
+                  type="text"
                   required
                   value={settings.hr_notification_email}
                   onChange={(e) =>
@@ -181,18 +230,81 @@ export function SettingsClient() {
                 />
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Receives automated alerts whenever an employee applies for leave.
+                Receives immediate alerts when an employee applies for leave to review quotas and sign off. Supports comma-separated emails.
               </p>
             </div>
 
             <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1.5">
+                Executive Assistant (EA) Email
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={settings.ea_notification_email}
+                  onChange={(e) =>
+                    setSettings({ ...settings, ea_notification_email: e.target.value })
+                  }
+                  placeholder="ea@vrdexports.in"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Receives review requests and copies of applications for executive scheduling and approval. Supports comma-separated emails.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1.5">
+                Company Owners / Directors Email
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={settings.owner_notification_email}
+                  onChange={(e) =>
+                    setSettings({ ...settings, owner_notification_email: e.target.value })
+                  }
+                  placeholder="owner@vrdexports.in, director@vrdexports.in"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Receives instant copies of all leave submissions and status decisions for top management visibility. Supports comma-separated emails.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1.5">
+                Your Email / Additional Stakeholder CCs
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={settings.additional_notification_emails}
+                  onChange={(e) =>
+                    setSettings({ ...settings, additional_notification_emails: e.target.value })
+                  }
+                  placeholder="your.email@vrdexports.in, partner@vrdexports.in"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Any additional inboxes (such as your own email address) that should be copied on all leave submissions and decisions.
+              </p>
+            </div>
+
+            <div className="md:col-span-2">
               <label className="block text-xs font-semibold text-slate-700 uppercase mb-1.5">
                 Admin Alert / Escalation Email
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
-                  type="email"
+                  type="text"
                   required
                   value={settings.admin_notification_email}
                   onChange={(e) =>
@@ -202,10 +314,86 @@ export function SettingsClient() {
                 />
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Receives escalation notices and system health summaries.
+                Receives escalation notices, delivery reports, and system summaries.
               </p>
             </div>
           </div>
+        </div>
+
+        {/* Designated Approver Inboxes (Up to 10+ Approvers) */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <UserCheck className="w-5 h-5 text-blue-600" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-bold text-slate-900 text-base">Designated Approver Inboxes</h2>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                    {getApproverList().length} Configured
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Every email address listed here receives immediate notification of every submitted leave request with a direct review link.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleFill10Approvers}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors flex-shrink-0"
+            >
+              Pre-fill 10 VRD Approvers
+            </button>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase mb-1.5">
+              Approver Emails (comma or line-separated)
+            </label>
+            <textarea
+              rows={4}
+              value={settings.approver_notification_emails}
+              onChange={(e) =>
+                setSettings({ ...settings, approver_notification_emails: e.target.value })
+              }
+              placeholder="director@vrdexports.in, hr.head@vrdexports.in, operations.head@vrdexports.in, ea@vrdexports.in..."
+              className="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-slate-400 mt-1">
+              Supports 10 or more approver email addresses. Enter them separated by commas or on new lines.
+            </p>
+          </div>
+
+          {/* Active Approver Badges */}
+          {getApproverList().length > 0 && (
+            <div className="pt-2">
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                Active Approvers ({getApproverList().length})
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {getApproverList().map((email, idx) => (
+                  <span
+                    key={email}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-medium border border-slate-200 transition-colors"
+                  >
+                    <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                    <span className="font-mono">{email}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeApprover(email)}
+                      className="text-slate-400 hover:text-red-500 ml-0.5 font-bold"
+                      title="Remove"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Global Policy Rules */}

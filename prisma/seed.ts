@@ -148,6 +148,26 @@ const DEFAULT_SETTINGS = [
     description: "Email address to receive administrative leave alerts",
   },
   {
+    key: "ea_notification_email",
+    value: JSON.stringify(process.env.EA_NOTIFICATION_EMAIL || "ea@vrdexports.com"),
+    description: "Email address to receive Executive Assistant (EA) approval notices",
+  },
+  {
+    key: "owner_notification_email",
+    value: JSON.stringify(process.env.OWNER_NOTIFICATION_EMAIL || "owner@vrdexports.com"),
+    description: "Email addresses of company owners/directors for management oversight",
+  },
+  {
+    key: "additional_notification_emails",
+    value: JSON.stringify(process.env.ADDITIONAL_NOTIFICATION_EMAILS || ""),
+    description: "Additional stakeholder email addresses to receive copies of all leave notifications",
+  },
+  {
+    key: "approver_notification_emails",
+    value: JSON.stringify(process.env.APPROVER_NOTIFICATION_EMAILS || ""),
+    description: "List of designated approver email inboxes (supports up to 10+ emails)",
+  },
+  {
     key: "annual_leave_cycle_start_month",
     value: JSON.stringify(1), // January (1 = Jan, 4 = April for Indian Fiscal Year)
     description: "Month when annual leave allowances reset (1 = Jan, 4 = Apr)",

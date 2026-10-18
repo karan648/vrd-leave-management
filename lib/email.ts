@@ -172,6 +172,21 @@ function isValidEmail(email?: string | null): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function parseEmailList(raw?: string | null): string[] {
+  if (!raw || typeof raw !== "string") return [];
+  const items = raw.split(/[,;\n\r]+/);
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const item of items) {
+    const trimmed = item.trim().toLowerCase();
+    if (isValidEmail(trimmed) && !seen.has(trimmed)) {
+      seen.add(trimmed);
+      result.push(trimmed);
+    }
+  }
+  return result;
+}
+
 // ---------------------------------------------------------------------------
 // Deduplicate recipients
 // ---------------------------------------------------------------------------
@@ -189,40 +204,80 @@ function deduplicateRecipients<T extends { email: string }>(
 }
 
 // ---------------------------------------------------------------------------
-// Get configured recipients from env or DB settings
+// Get configured recipients from env or DB settings (supports comma-separated)
 // ---------------------------------------------------------------------------
 
-async function getHREmail(): Promise<string | null> {
-  // DB setting takes precedence over env var
+async function getEmailListFromSetting(key: string, envVal?: string): Promise<string[]> {
   try {
     const setting = await prisma.companySetting.findUnique({
-      where: { key: "hr_notification_email" },
+      where: { key },
     });
     if (setting?.value) {
-      const parsed = JSON.parse(setting.value);
-      if (isValidEmail(parsed)) return parsed as string;
+      let parsed = setting.value;
+      try {
+        parsed = JSON.parse(setting.value);
+      } catch {}
+      if (Array.isArray(parsed)) {
+        const list = parsed.flatMap((e) => parseEmailList(String(e)));
+        if (list.length > 0) return list;
+      }
+      if (typeof parsed === "string") {
+        const list = parseEmailList(parsed);
+        if (list.length > 0) return list;
+      }
     }
   } catch {
     // fall through to env
   }
-  const env = process.env.HR_NOTIFICATION_EMAIL;
-  return isValidEmail(env) ? (env as string) : null;
+  return parseEmailList(envVal);
 }
 
-async function getAdminEmail(): Promise<string | null> {
+export async function getHREmails(): Promise<string[]> {
+  return getEmailListFromSetting("hr_notification_email", process.env.HR_NOTIFICATION_EMAIL);
+}
+
+export async function getAdminEmails(): Promise<string[]> {
+  return getEmailListFromSetting(
+    "admin_notification_email",
+    process.env.LEAVE_NOTIFICATION_EMAIL || process.env.ADMIN_NOTIFICATION_EMAIL
+  );
+}
+
+export async function getEAEmails(): Promise<string[]> {
+  return getEmailListFromSetting("ea_notification_email", process.env.EA_NOTIFICATION_EMAIL);
+}
+
+export async function getOwnerEmails(): Promise<string[]> {
+  return getEmailListFromSetting("owner_notification_email", process.env.OWNER_NOTIFICATION_EMAIL);
+}
+
+export async function getAdditionalEmails(): Promise<string[]> {
+  return getEmailListFromSetting(
+    "additional_notification_emails",
+    process.env.ADDITIONAL_NOTIFICATION_EMAILS
+  );
+}
+
+export async function getApproverEmails(): Promise<string[]> {
+  return getEmailListFromSetting(
+    "approver_notification_emails",
+    process.env.APPROVER_NOTIFICATION_EMAILS
+  );
+}
+
+export async function getAdminUserEmails(): Promise<string[]> {
   try {
-    const setting = await prisma.companySetting.findUnique({
-      where: { key: "leave_notification_email" },
+    const adminUsers = await prisma.adminUser.findMany({
+      where: {
+        isActive: true,
+        role: { in: ["SUPER_ADMIN", "HR_ADMIN", "MANAGER"] },
+      },
+      select: { email: true },
     });
-    if (setting?.value) {
-      const parsed = JSON.parse(setting.value);
-      if (isValidEmail(parsed)) return parsed as string;
-    }
+    return adminUsers.map((u) => u.email.toLowerCase().trim()).filter(Boolean);
   } catch {
-    // fall through to env
+    return [];
   }
-  const env = process.env.LEAVE_NOTIFICATION_EMAIL;
-  return isValidEmail(env) ? (env as string) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -279,29 +334,62 @@ export async function sendSubmissionNotifications(data: {
     results.push({ type: "SUBMISSION_CONFIRMATION", success: false });
   }
 
-  // Collect manager, HR, admin recipients for notification
+  // Collect manager, HR, EA, Owners, Admin, and Additional CCs for review notification
   const notifyList: Array<{
     email: string;
     name: string;
     type: NotificationType;
   }> = [];
 
+  // Reporting Manager
   if (isValidEmail(data.reportingManagerEmail)) {
     notifyList.push({
-      email: data.reportingManagerEmail,
-      name: data.reportingManagerName,
+      email: data.reportingManagerEmail.trim().toLowerCase(),
+      name: data.reportingManagerName || "Reporting Manager",
       type: "MANAGER_NOTIFICATION",
     });
   }
 
-  const hrEmail = await getHREmail();
-  if (hrEmail) {
-    notifyList.push({ email: hrEmail, name: "HR Department", type: "HR_NOTIFICATION" });
+  // HR Department
+  const hrEmails = await getHREmails();
+  for (const email of hrEmails) {
+    notifyList.push({ email, name: "HR Department", type: "HR_NOTIFICATION" });
   }
 
-  const adminEmail = await getAdminEmail();
-  if (adminEmail) {
-    notifyList.push({ email: adminEmail, name: "Leave Admin", type: "ADMIN_NOTIFICATION" });
+  // Executive Assistant (EA)
+  const eaEmails = await getEAEmails();
+  for (const email of eaEmails) {
+    notifyList.push({ email, name: "Executive Assistant (EA)", type: "ADMIN_NOTIFICATION" });
+  }
+
+  // Company Owners / Directors
+  const ownerEmails = await getOwnerEmails();
+  for (const email of ownerEmails) {
+    notifyList.push({ email, name: "Company Management / Owner", type: "ADMIN_NOTIFICATION" });
+  }
+
+  // Leave Admin
+  const adminEmails = await getAdminEmails();
+  for (const email of adminEmails) {
+    notifyList.push({ email, name: "Leave Admin", type: "ADMIN_NOTIFICATION" });
+  }
+
+  // Additional CCs / User's own inbox
+  const additionalEmails = await getAdditionalEmails();
+  for (const email of additionalEmails) {
+    notifyList.push({ email, name: "Management Stakeholder", type: "ADMIN_NOTIFICATION" });
+  }
+
+  // Designated Approver Inboxes (up to 10+ approver emails)
+  const approverEmails = await getApproverEmails();
+  for (const email of approverEmails) {
+    notifyList.push({ email, name: "Designated Leave Approver", type: "ADMIN_NOTIFICATION" });
+  }
+
+  // Active Admin Approvers from database
+  const dbAdmins = await getAdminUserEmails();
+  for (const email of dbAdmins) {
+    notifyList.push({ email, name: "Admin Approver", type: "ADMIN_NOTIFICATION" });
   }
 
   // Deduplicate and send
@@ -427,18 +515,42 @@ export async function sendStatusUpdateNotifications(data: {
     }
   }
 
-  // 2. Notify manager and HR
+  // 2. Notify manager, HR, EA, Owners, Admin, and Additional CCs
   const notifyList: Array<{ email: string; name: string; type: NotificationType }> = [];
   if (isValidEmail(data.reportingManagerEmail)) {
     notifyList.push({
-      email: data.reportingManagerEmail!,
+      email: data.reportingManagerEmail!.trim().toLowerCase(),
       name: "Reporting Manager",
       type: "STATUS_UPDATE_MANAGER",
     });
   }
-  const hrEmail = await getHREmail();
-  if (hrEmail) {
-    notifyList.push({ email: hrEmail, name: "HR Department", type: "STATUS_UPDATE_HR" });
+
+  for (const email of await getHREmails()) {
+    notifyList.push({ email, name: "HR Department", type: "STATUS_UPDATE_HR" });
+  }
+
+  for (const email of await getEAEmails()) {
+    notifyList.push({ email, name: "Executive Assistant (EA)", type: "STATUS_UPDATE_HR" });
+  }
+
+  for (const email of await getOwnerEmails()) {
+    notifyList.push({ email, name: "Company Management / Owner", type: "STATUS_UPDATE_HR" });
+  }
+
+  for (const email of await getAdminEmails()) {
+    notifyList.push({ email, name: "Leave Admin", type: "STATUS_UPDATE_HR" });
+  }
+
+  for (const email of await getAdditionalEmails()) {
+    notifyList.push({ email, name: "Management Stakeholder", type: "STATUS_UPDATE_HR" });
+  }
+
+  for (const email of await getApproverEmails()) {
+    notifyList.push({ email, name: "Designated Leave Approver", type: "STATUS_UPDATE_HR" });
+  }
+
+  for (const email of await getAdminUserEmails()) {
+    notifyList.push({ email, name: "Admin Approver", type: "STATUS_UPDATE_HR" });
   }
 
   for (const recipient of deduplicateRecipients(notifyList)) {
