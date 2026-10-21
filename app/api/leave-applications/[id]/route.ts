@@ -38,7 +38,7 @@ export async function GET(
     return Response.json({ error: "Application not found" }, { status: 404 });
   }
 
-  return Response.json({ data: application });
+  return Response.json({ data: application, ...application });
 }
 
 export async function PATCH(
