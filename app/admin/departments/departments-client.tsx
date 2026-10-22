@@ -2,14 +2,12 @@
 
 import { useState, useEffect } from "react";
 import {
-  Building2,
   Plus,
   Search,
   RefreshCw,
   X,
   AlertCircle,
   Edit2,
-  Briefcase,
   FileText,
 } from "lucide-react";
 
@@ -28,7 +26,6 @@ export function DepartmentsClient() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<Department | null>(null);
   const [formData, setFormData] = useState({
@@ -98,19 +95,15 @@ export function DepartmentsClient() {
         }),
       });
 
-      const data = await res.json();
+      const json = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to save department");
+        throw new Error(json.error || "Failed to save department");
       }
 
       setIsModalOpen(false);
-      fetchDepartments();
+      await fetchDepartments();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setErrorMessage(err.message);
-      } else {
-        setErrorMessage("An unexpected error occurred");
-      }
+      setErrorMessage(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsSubmitting(false);
     }
@@ -124,8 +117,8 @@ export function DepartmentsClient() {
         body: JSON.stringify({ isActive: !dept.isActive }),
       });
       if (res.ok) {
-        setDepartments(
-          departments.map((d) => (d.id === dept.id ? { ...d, isActive: !d.isActive } : d))
+        setDepartments((prev) =>
+          prev.map((d) => (d.id === dept.id ? { ...d, isActive: !d.isActive } : d))
         );
       }
     } catch (e) {
@@ -134,127 +127,115 @@ export function DepartmentsClient() {
   }
 
   const filtered = departments.filter((d) => {
+    const q = search.toLowerCase();
     return (
-      d.name.toLowerCase().includes(search.toLowerCase()) ||
-      (d.code && d.code.toLowerCase().includes(search.toLowerCase())) ||
-      (d.description && d.description.toLowerCase().includes(search.toLowerCase()))
+      d.name.toLowerCase().includes(q) ||
+      (d.code && d.code.toLowerCase().includes(q))
     );
   });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-            <Building2 className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Departments</h1>
-            <p className="text-sm text-slate-500">
-              Manage VRD Exports operational units, factories, divisions, and teams
-            </p>
-          </div>
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Departments</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Operational units and team divisions
+          </p>
         </div>
 
         <button
           onClick={handleOpenCreate}
-          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-colors text-sm"
+          className="inline-flex items-center gap-1.5 bg-gray-900 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm"
         >
           <Plus className="w-4 h-4" />
           Add Department
         </button>
       </div>
 
-      {/* Search Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      {/* Search & Actions */}
+      <div className="bg-white p-3 border border-gray-200 rounded-xl flex items-center justify-between gap-3">
+        <div className="relative w-full sm:w-72">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search departments by name or code..."
+            placeholder="Search departments..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-900"
           />
         </div>
 
         <button
           onClick={fetchDepartments}
           title="Refresh"
-          className="p-2 text-slate-500 hover:text-slate-800 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+          className="p-1.5 text-gray-500 hover:text-gray-900 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
         >
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
 
-      {/* Grid of Department Cards */}
+      {/* Grid */}
       {loading ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">
-          <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
-          Loading departments...
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-sm text-gray-400">
+          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-gray-400" />
+          Loading departments…
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">
-          No departments found matching your criteria.
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-sm text-gray-400">
+          No departments found.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((dept) => (
             <div
               key={dept.id}
-              className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+              className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col justify-between hover:border-gray-300 transition-colors"
             >
               <div>
-                <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 font-mono text-xs font-bold flex items-center justify-center border border-blue-100">
-                      {dept.code || "—"}
-                    </span>
-                    <h3 className="font-bold text-slate-900 text-base">{dept.name}</h3>
+                    {dept.code && (
+                      <span className="font-mono text-xs font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                        {dept.code}
+                      </span>
+                    )}
+                    <h3 className="font-semibold text-gray-900 text-sm">{dept.name}</h3>
                   </div>
                   <span
-                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium ${
+                    className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium border ${
                       dept.isActive
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                        : "bg-rose-50 text-rose-700 border border-rose-200"
+                        ? "bg-green-50 text-green-700 border-green-200"
+                        : "bg-gray-50 text-gray-600 border-gray-200"
                     }`}
                   >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        dept.isActive ? "bg-emerald-500" : "bg-rose-500"
-                      }`}
-                    />
                     {dept.isActive ? "Active" : "Inactive"}
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-500 line-clamp-2 min-h-[32px]">
+                <p className="text-xs text-gray-500 line-clamp-2 min-h-[32px]">
                   {dept.description || "No description provided."}
                 </p>
               </div>
 
-              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="inline-flex items-center gap-1 text-slate-500">
-                  <FileText className="w-3.5 h-3.5 text-slate-400" />
+              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                <span className="inline-flex items-center gap-1 text-gray-400">
+                  <FileText className="w-3.5 h-3.5" />
                   {dept._count?.leaveApplications ?? 0} applications
                 </span>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleOpenEdit(dept)}
-                    title="Edit Department"
-                    className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit"
+                    className="p-1 text-gray-400 hover:text-gray-900 transition-colors"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => toggleStatus(dept)}
-                    className={`px-2 py-0.5 text-xs font-medium rounded-md transition-colors border ${
-                      dept.isActive
-                        ? "text-slate-500 border-slate-200 hover:bg-slate-100"
-                        : "text-emerald-700 border-emerald-200 bg-emerald-50"
-                    }`}
+                    className="text-xs text-gray-500 hover:text-gray-900 transition-colors"
                   >
                     {dept.isActive ? "Deactivate" : "Activate"}
                   </button>
@@ -265,87 +246,84 @@ export function DepartmentsClient() {
         </div>
       )}
 
-      {/* Add / Edit Modal */}
+      {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-slate-900 text-lg">
-                  {editingDept ? "Edit Department" : "Create New Department"}
-                </h3>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="bg-white rounded-xl max-w-sm w-full p-5 border border-gray-200 shadow-xl">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+              <h3 className="font-semibold text-gray-900 text-sm">
+                {editingDept ? "Edit Department" : "Add Department"}
+              </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                className="text-gray-400 hover:text-gray-600"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {errorMessage && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <div className="mb-4 p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  Department Name *
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Name *
                 </label>
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Merchandising & Sourcing"
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. Merchandising"
+                  className="form-input text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  Department Code (uppercase, e.g. MERCH)
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Code
                 </label>
                 <input
                   type="text"
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                   placeholder="MERCH"
-                  className="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="form-input font-mono text-xs uppercase"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Description
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Brief description of department scope..."
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Brief description"
+                  className="form-input text-xs resize-none"
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-100">
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800"
+                  className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg shadow-sm"
+                  className="px-4 py-1.5 text-xs font-medium bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white rounded-lg transition-colors"
                 >
-                  {isSubmitting ? "Saving..." : editingDept ? "Update Department" : "Save Department"}
+                  {isSubmitting ? "Saving…" : "Save"}
                 </button>
               </div>
             </form>

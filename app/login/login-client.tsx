@@ -3,16 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import {
-  Building2,
-  Lock,
-  Mail,
-  Eye,
-  EyeOff,
-  ArrowRight,
-  ShieldAlert,
-  CheckCircle2,
-} from "lucide-react";
+import { Eye, EyeOff, ArrowRight, AlertCircle, Check } from "lucide-react";
 
 export function LoginClient() {
   const router = useRouter();
@@ -41,7 +32,7 @@ export function LoginClient() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to sign in. Please check your credentials.");
+        throw new Error(data.error || "Invalid email or password.");
       }
 
       setSuccess(true);
@@ -53,7 +44,7 @@ export function LoginClient() {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("An unexpected error occurred. Please try again.");
+        setError("An unexpected error occurred.");
       }
     } finally {
       setIsLoading(false);
@@ -61,111 +52,73 @@ export function LoginClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      {/* Background ambient lighting */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl" />
-      </div>
-
-      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        {/* Brand Header */}
+    <div className="min-h-screen bg-[#fafafa] flex flex-col justify-center py-12 px-6">
+      <div className="mx-auto w-full max-w-sm">
+        {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-3 group">
-            <div className="w-12 h-12 bg-gradient-to-tr from-[#2563eb] to-[#3b82f6] rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-105 transition-transform">
-              <Building2 className="w-6 h-6 text-white" />
-            </div>
-            <div className="text-left">
-              <span className="text-xs font-bold tracking-widest uppercase text-blue-400 block">
-                VRD Exports
-              </span>
-              <span className="text-xl font-extrabold text-white">
-                Leave Management
-              </span>
-            </div>
+          <Link href="/" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+            VRD Exports
           </Link>
-          <h2 className="mt-6 text-2xl font-bold tracking-tight text-white">
-            Admin Portal Access
-          </h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Sign in to manage leave approvals, workforce records, and configurations
+          <h1 className="mt-4 text-xl font-semibold text-gray-900 tracking-tight">
+            Sign in to Admin
+          </h1>
+          <p className="mt-1.5 text-sm text-gray-500">
+            Leave management dashboard access
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-[#1e2840]/90 border border-[#334155] backdrop-blur-xl py-8 px-6 shadow-2xl rounded-2xl sm:px-10">
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
           {error && (
-            <div className="mb-6 p-3.5 bg-red-500/15 border border-red-500/30 rounded-xl flex items-start gap-3">
-              <ShieldAlert className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-red-200">{error}</p>
+            <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
 
           {success && (
-            <div className="mb-6 p-3.5 bg-emerald-500/15 border border-emerald-500/30 rounded-xl flex items-start gap-3">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-emerald-200">
-                Credentials verified! Redirecting to admin console...
-              </p>
+            <div className="mb-5 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2.5">
+              <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-green-700">Signed in. Redirecting…</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label
-                htmlFor="email"
-                className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5"
-              >
-                Work Email Address
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Email
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Mail className="h-4 w-4 text-slate-400" />
-                </div>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="admin@vrdexports.in"
-                  className="w-full bg-[#0f172a]/70 border border-[#334155] rounded-xl pl-10 pr-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
-              </div>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="you@vrdexports.in"
+                className="form-input"
+              />
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label
-                  htmlFor="password"
-                  className="block text-xs font-semibold text-slate-300 uppercase tracking-wider"
-                >
-                  Password
-                </label>
-              </div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Password
+              </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Lock className="h-4 w-4 text-slate-400" />
-                </div>
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="••••••••••••"
-                  className="w-full bg-[#0f172a]/70 border border-[#334155] rounded-xl pl-10 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  placeholder="••••••••"
+                  className="form-input pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
@@ -173,27 +126,23 @@ export function LoginClient() {
             <button
               type="submit"
               disabled={isLoading || success}
-              className="w-full mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl shadow-lg shadow-blue-500/25 transition-all text-sm"
+              className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm mt-1"
             >
               {isLoading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  Sign In to Admin
+                  Sign In
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Employee portal link */}
-          <div className="mt-6 pt-6 border-t border-[#334155]/60 text-center">
-            <p className="text-xs text-slate-400">
-              Looking to submit a leave request instead?{" "}
-              <Link
-                href="/apply-leave"
-                className="text-blue-400 hover:text-blue-300 font-semibold"
-              >
+          <div className="mt-5 pt-5 border-t border-gray-100 text-center">
+            <p className="text-xs text-gray-400">
+              Need to submit a leave request?{" "}
+              <Link href="/apply-leave" className="text-gray-600 hover:text-gray-900 font-medium">
                 Employee Portal
               </Link>
             </p>

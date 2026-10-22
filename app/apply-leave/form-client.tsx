@@ -8,18 +8,12 @@ import {
   type LeaveApplicationInput,
   type LeaveApplicationFormValues,
 } from "@/lib/validations";
-import { calculateLeaveDays, formatDateLong } from "@/lib/utils";
+import { calculateLeaveDays } from "@/lib/utils";
 import {
-  CheckCircle,
+  CheckCircle2,
   AlertCircle,
   Loader2,
   ChevronDown,
-  Calendar,
-  User,
-  Mail,
-  Building2,
-  FileText,
-  Phone,
   Copy,
   Check,
 } from "lucide-react";
@@ -51,13 +45,13 @@ function FormField({
 }) {
   return (
     <div>
-      <label className="form-label">
+      <label className="block text-sm font-medium text-gray-700 mb-1.5">
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       {children}
       {hint && !error && (
-        <p className="text-xs text-[#94a3b8] mt-1">{hint}</p>
+        <p className="text-xs text-gray-400 mt-1">{hint}</p>
       )}
       {error && <p className="form-error">{error}</p>}
     </div>
@@ -82,7 +76,7 @@ function SelectEl(props: React.SelectHTMLAttributes<HTMLSelectElement> & { hasEr
         {...rest}
         className={`form-input appearance-none pr-8 ${hasError ? "error" : ""} ${className || ""}`}
       />
-      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8] pointer-events-none" />
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
     </div>
   );
 }
@@ -109,7 +103,6 @@ export function LeaveApplicationFormClient() {
   const [leaveDays, setLeaveDays] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  // Idempotency key — generated once per form session
   const idempotencyKey = useRef(
     `${Date.now()}-${Math.random().toString(36).substring(2)}`
   );
@@ -119,7 +112,6 @@ export function LeaveApplicationFormClient() {
     handleSubmit,
     watch,
     formState: { errors },
-    setValue,
   } = useForm<LeaveApplicationFormValues, unknown, LeaveApplicationInput>({
     resolver: zodResolver(LeaveApplicationSchema),
     defaultValues: {
@@ -134,7 +126,6 @@ export function LeaveApplicationFormClient() {
 
   const selectedLeaveType = leaveTypes.find((lt) => lt.id === selectedLeaveTypeId);
 
-  // Load departments and leave types
   useEffect(() => {
     async function load() {
       setLoadingDepts(true);
@@ -147,7 +138,7 @@ export function LeaveApplicationFormClient() {
         setDepartments(dJson.data ?? []);
         setLeaveTypes(ltJson.data ?? []);
       } catch {
-        // Non-fatal; dropdowns will be empty
+        // Non-fatal
       } finally {
         setLoadingDepts(false);
       }
@@ -155,33 +146,20 @@ export function LeaveApplicationFormClient() {
     load();
   }, []);
 
-  // Recalculate leave days
   const recalcDays = useCallback(() => {
     if (!startDate || !endDate) {
       setLeaveDays(0);
       return;
     }
-    const s = new Date(startDate);
-    const e = new Date(endDate);
-    if (isNaN(s.getTime()) || isNaN(e.getTime()) || e < s) {
-      setLeaveDays(0);
-      return;
-    }
-    const days = calculateLeaveDays(s, e, { isHalfDay });
+    const days = calculateLeaveDays(new Date(startDate), new Date(endDate), {
+      isHalfDay: !!isHalfDay,
+    });
     setLeaveDays(days);
   }, [startDate, endDate, isHalfDay]);
 
   useEffect(() => {
     recalcDays();
   }, [recalcDays]);
-
-  // If half-day is unchecked when leave type doesn't support it
-  useEffect(() => {
-    if (selectedLeaveType && !selectedLeaveType.allowHalfDay) {
-      setValue("isHalfDay", false);
-      setValue("halfDayPeriod", undefined);
-    }
-  }, [selectedLeaveTypeId, selectedLeaveType, setValue]);
 
   async function onSubmit(data: LeaveApplicationInput) {
     setSubmitting(true);
@@ -190,11 +168,11 @@ export function LeaveApplicationFormClient() {
     try {
       const res = await fetch("/api/leave-applications", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          idempotencyKey: idempotencyKey.current,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey.current,
+        },
+        body: JSON.stringify(data),
       });
 
       const json = await res.json();
@@ -229,73 +207,64 @@ export function LeaveApplicationFormClient() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  // -------------------------------------------------------------------------
   // Success State
-  // -------------------------------------------------------------------------
   if (submitted) {
     return (
-      <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-8 text-center">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircle className="w-8 h-8 text-green-600" />
-        </div>
-        <h2 className="text-xl font-bold text-[#0f172a] mb-2">
-          Application Submitted!
-        </h2>
-        <p className="text-[#64748b] text-sm mb-8">
-          Your leave application has been received and is pending review.
-        </p>
-
-        <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-6 mb-6 text-left">
-          <p className="text-xs font-semibold text-[#64748b] uppercase tracking-widest mb-4">
-            Submission Details
-          </p>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-[#64748b]">Reference Number</span>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-[#0f172a] font-mono">
-                  {submitted.referenceNumber}
-                </span>
-                <button
-                  onClick={copyRef}
-                  className="text-[#2563eb] hover:text-[#1d4ed8] p-1 rounded transition-colors"
-                  title="Copy reference number"
-                >
-                  {copied ? (
-                    <Check className="w-4 h-4" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-[#64748b]">Status</span>
-              <span className="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1 rounded-full border border-amber-200">
-                Pending Review
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-[#64748b]">Total Days</span>
-              <span className="text-sm font-semibold text-[#0f172a]">
-                {submitted.totalDays} day{submitted.totalDays !== 1 ? "s" : ""}
-              </span>
-            </div>
+      <div className="bg-white border border-gray-200 rounded-xl p-8">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-full bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 tracking-tight">
+              Application Submitted
+            </h2>
+            <p className="text-sm text-gray-500">
+              Your leave request is under review.
+            </p>
           </div>
         </div>
 
-        <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6 text-sm text-blue-800 text-left">
-          <strong>Next steps:</strong> You will receive a confirmation email at your registered
-          address. Keep your reference number <strong>{submitted.referenceNumber}</strong> to
-          track your application status.
+        <div className="bg-gray-50 border border-gray-100 rounded-lg p-5 mb-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500 uppercase tracking-wide">Reference Number</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-gray-900 font-mono">
+                {submitted.referenceNumber}
+              </span>
+              <button
+                onClick={copyRef}
+                className="text-gray-400 hover:text-gray-700 p-1 transition-colors"
+                title="Copy reference number"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500 uppercase tracking-wide">Status</span>
+            <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+              Pending Review
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500 uppercase tracking-wide">Duration</span>
+            <span className="text-sm font-medium text-gray-900">
+              {submitted.totalDays} day{submitted.totalDays !== 1 ? "s" : ""}
+            </span>
+          </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <p className="text-xs text-gray-500 mb-6">
+          A confirmation email has been sent to your registered address. You can check the status anytime using your reference number.
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-3">
           <Link
             href="/leave-status"
-            className="inline-flex items-center justify-center gap-2 bg-[#2563eb] text-white font-semibold px-6 py-3 rounded-lg text-sm hover:bg-[#1d4ed8] transition-colors"
+            className="inline-flex items-center justify-center gap-2 bg-gray-900 text-white font-medium px-5 py-2.5 rounded-lg text-sm hover:bg-gray-800 transition-colors"
           >
-            Track Application Status
+            Track Status
           </Link>
           <button
             onClick={() => {
@@ -303,7 +272,7 @@ export function LeaveApplicationFormClient() {
               setServerError(null);
               idempotencyKey.current = `${Date.now()}-${Math.random().toString(36).substring(2)}`;
             }}
-            className="inline-flex items-center justify-center gap-2 border border-[#e2e8f0] text-[#374151] font-semibold px-6 py-3 rounded-lg text-sm hover:bg-[#f8fafc] transition-colors"
+            className="inline-flex items-center justify-center gap-2 border border-gray-200 text-gray-700 font-medium px-5 py-2.5 rounded-lg text-sm hover:bg-gray-50 transition-colors"
           >
             Submit Another Application
           </button>
@@ -312,44 +281,27 @@ export function LeaveApplicationFormClient() {
     );
   }
 
-  // -------------------------------------------------------------------------
   // Form
-  // -------------------------------------------------------------------------
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate>
-      {/* Server Error */}
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
       {serverError && (
-        <div className="mb-6 flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-lg p-3.5">
+          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-red-700">{serverError}</p>
         </div>
       )}
 
-      {/* Leave days preview */}
-      {leaveDays > 0 && (
-        <div className="mb-6 flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl px-5 py-3">
-          <Calendar className="w-5 h-5 text-blue-500 flex-shrink-0" />
-          <p className="text-sm text-blue-800">
-            <strong>{leaveDays} day{leaveDays !== 1 ? "s" : ""}</strong> of leave calculated
-            {isHalfDay && " (half-day)"}
-          </p>
-        </div>
-      )}
-
-      {/* ================================================================
-          Section 1: Employee Details
-      ================================================================ */}
-      <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm mb-5">
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-[#f1f5f9]">
-          <User className="w-4 h-4 text-[#64748b]" />
-          <h2 className="font-semibold text-[#0f172a] text-sm">Employee Information</h2>
-        </div>
-        <div className="p-6 grid sm:grid-cols-2 gap-5">
+      {/* Section 1: Employee */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <h2 className="text-sm font-semibold text-gray-900 mb-5">
+          Employee Details
+        </h2>
+        <div className="grid sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
             <FormField label="Full Name" required error={errors.employeeName?.message}>
               <InputEl
                 {...register("employeeName")}
-                placeholder="Your full name as per records"
+                placeholder="Full name as per official records"
                 hasError={!!errors.employeeName}
               />
             </FormField>
@@ -359,7 +311,7 @@ export function LeaveApplicationFormClient() {
             <InputEl
               {...register("employeeEmail")}
               type="email"
-              placeholder="your.name@vrdexports.com"
+              placeholder="you@vrdexports.com"
               hasError={!!errors.employeeEmail}
             />
           </FormField>
@@ -367,11 +319,11 @@ export function LeaveApplicationFormClient() {
           <FormField
             label="Employee ID"
             error={errors.employeeIdNumber?.message}
-            hint="Optional — as assigned by HR"
+            hint="Optional"
           >
             <InputEl
               {...register("employeeIdNumber")}
-              placeholder="e.g., VRD-001"
+              placeholder="e.g. VRD-001"
               hasError={!!errors.employeeIdNumber}
             />
           </FormField>
@@ -383,7 +335,7 @@ export function LeaveApplicationFormClient() {
               disabled={loadingDepts}
             >
               <option value="">
-                {loadingDepts ? "Loading departments..." : "Select department"}
+                {loadingDepts ? "Loading..." : "Select department"}
               </option>
               {departments.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -401,7 +353,7 @@ export function LeaveApplicationFormClient() {
               disabled={loadingDepts}
             >
               <option value="">
-                {loadingDepts ? "Loading leave types..." : "Select leave type"}
+                {loadingDepts ? "Loading..." : "Select leave type"}
               </option>
               {leaveTypes.map((lt) => (
                 <option key={lt.id} value={lt.id}>
@@ -413,15 +365,20 @@ export function LeaveApplicationFormClient() {
         </div>
       </div>
 
-      {/* ================================================================
-          Section 2: Leave Dates
-      ================================================================ */}
-      <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm mb-5">
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-[#f1f5f9]">
-          <Calendar className="w-4 h-4 text-[#64748b]" />
-          <h2 className="font-semibold text-[#0f172a] text-sm">Leave Dates</h2>
+      {/* Section 2: Dates & Reason */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-sm font-semibold text-gray-900">
+            Dates & Reason
+          </h2>
+          {leaveDays > 0 && (
+            <span className="text-xs font-medium text-gray-900 bg-gray-100 px-2.5 py-1 rounded-full">
+              {leaveDays} day{leaveDays !== 1 ? "s" : ""}{isHalfDay ? " (half-day)" : ""}
+            </span>
+          )}
         </div>
-        <div className="p-6 grid sm:grid-cols-2 gap-5">
+
+        <div className="grid sm:grid-cols-2 gap-4">
           <FormField label="Start Date" required error={errors.startDate?.message}>
             <InputEl
               {...register("startDate")}
@@ -440,16 +397,13 @@ export function LeaveApplicationFormClient() {
 
           {selectedLeaveType?.allowHalfDay && (
             <div className="sm:col-span-2">
-              <label className="flex items-center gap-3 cursor-pointer">
+              <label className="flex items-center gap-2.5 cursor-pointer">
                 <input
                   {...register("isHalfDay")}
                   type="checkbox"
-                  className="w-4 h-4 rounded border-[#cbd5e1] text-[#2563eb] cursor-pointer"
+                  className="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 cursor-pointer"
                 />
-                <div>
-                  <span className="text-sm font-medium text-[#374151]">Half-day leave</span>
-                  <p className="text-xs text-[#64748b]">Apply for half a day on the start date</p>
-                </div>
+                <span className="text-sm text-gray-700">Apply for half-day</span>
               </label>
             </div>
           )}
@@ -470,8 +424,8 @@ export function LeaveApplicationFormClient() {
             <FormField label="Reason for Leave" required error={errors.reason?.message}>
               <TextareaEl
                 {...register("reason")}
-                rows={4}
-                placeholder="Briefly explain the reason for your leave request (minimum 10 characters)"
+                rows={3}
+                placeholder="State the reason for your leave"
                 hasError={!!errors.reason}
               />
             </FormField>
@@ -479,15 +433,12 @@ export function LeaveApplicationFormClient() {
         </div>
       </div>
 
-      {/* ================================================================
-          Section 3: Manager & Handover
-      ================================================================ */}
-      <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm mb-5">
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-[#f1f5f9]">
-          <Building2 className="w-4 h-4 text-[#64748b]" />
-          <h2 className="font-semibold text-[#0f172a] text-sm">Manager & Handover</h2>
-        </div>
-        <div className="p-6 grid sm:grid-cols-2 gap-5">
+      {/* Section 3: Manager & Handover */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <h2 className="text-sm font-semibold text-gray-900 mb-5">
+          Manager & Handover
+        </h2>
+        <div className="grid sm:grid-cols-2 gap-4">
           <FormField
             label="Reporting Manager Name"
             required
@@ -495,7 +446,7 @@ export function LeaveApplicationFormClient() {
           >
             <InputEl
               {...register("reportingManagerName")}
-              placeholder="Full name of your reporting manager"
+              placeholder="Manager full name"
               hasError={!!errors.reportingManagerName}
             />
           </FormField>
@@ -516,11 +467,11 @@ export function LeaveApplicationFormClient() {
           <FormField
             label="Handover Person Name"
             error={errors.handoverPersonName?.message}
-            hint="Person handling your responsibilities during leave"
+            hint="Optional"
           >
             <InputEl
               {...register("handoverPersonName")}
-              placeholder="Colleague's full name (optional)"
+              placeholder="Colleague handling tasks"
               hasError={!!errors.handoverPersonName}
             />
           </FormField>
@@ -528,38 +479,37 @@ export function LeaveApplicationFormClient() {
           <FormField
             label="Handover Person Email"
             error={errors.handoverPersonEmail?.message}
+            hint="Optional"
           >
             <InputEl
               {...register("handoverPersonEmail")}
               type="email"
-              placeholder="colleague@vrdexports.com (optional)"
+              placeholder="colleague@vrdexports.com"
               hasError={!!errors.handoverPersonEmail}
             />
           </FormField>
         </div>
       </div>
 
-      {/* ================================================================
-          Section 4: Additional Info
-      ================================================================ */}
-      <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm mb-6">
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-[#f1f5f9]">
-          <FileText className="w-4 h-4 text-[#64748b]" />
-          <h2 className="font-semibold text-[#0f172a] text-sm">Additional Information</h2>
-          <span className="text-xs text-[#94a3b8] ml-1">(Optional)</span>
-        </div>
-        <div className="p-6 grid sm:grid-cols-2 gap-5">
-          <FormField
-            label="Contact During Leave"
-            error={errors.contactDuringLeave?.message}
-            hint="Phone number or alternate contact method"
-          >
-            <InputEl
-              {...register("contactDuringLeave")}
-              placeholder="e.g., +91 98765 43210"
-              hasError={!!errors.contactDuringLeave}
-            />
-          </FormField>
+      {/* Section 4: Contact & Notes */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <h2 className="text-sm font-semibold text-gray-900 mb-5">
+          Additional Details <span className="text-xs font-normal text-gray-400">(Optional)</span>
+        </h2>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <FormField
+              label="Contact During Leave"
+              error={errors.contactDuringLeave?.message}
+              hint="Phone number or alternate email"
+            >
+              <InputEl
+                {...register("contactDuringLeave")}
+                placeholder="e.g. +91 98765 43210"
+                hasError={!!errors.contactDuringLeave}
+              />
+            </FormField>
+          </div>
 
           <div className="sm:col-span-2">
             <FormField
@@ -568,8 +518,8 @@ export function LeaveApplicationFormClient() {
             >
               <TextareaEl
                 {...register("additionalNotes")}
-                rows={3}
-                placeholder="Any additional information for HR or your manager"
+                rows={2}
+                placeholder="Any special remarks or instructions"
                 hasError={!!errors.additionalNotes}
               />
             </FormField>
@@ -577,38 +527,25 @@ export function LeaveApplicationFormClient() {
         </div>
       </div>
 
-      {/* Submit */}
-      <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
-          <div>
-            <p className="text-sm font-medium text-[#374151]">Ready to submit?</p>
-            <p className="text-xs text-[#94a3b8] mt-0.5">
-              All required fields must be filled. You will receive a confirmation email.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {leaveDays > 0 && (
-              <div className="text-right">
-                <p className="text-xs text-[#64748b]">Leave days</p>
-                <p className="text-lg font-bold text-[#0f172a]">{leaveDays}</p>
-              </div>
-            )}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center gap-2 bg-[#2563eb] text-white font-semibold px-8 py-3 rounded-lg hover:bg-[#1d4ed8] disabled:opacity-60 disabled:cursor-not-allowed transition-colors text-sm min-w-[160px] justify-center"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                "Submit Application"
-              )}
-            </button>
-          </div>
-        </div>
+      {/* Submission CTA */}
+      <div className="flex items-center justify-between pt-2">
+        <p className="text-xs text-gray-400">
+          Required fields are marked with <span className="text-red-500">*</span>
+        </p>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="inline-flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-lg transition-colors text-sm"
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Submitting…
+            </>
+          ) : (
+            "Submit Application"
+          )}
+        </button>
       </div>
     </form>
   );

@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: {
     default: "Admin Dashboard",
-    template: "%s | Admin — VRD Exports LMS",
+    template: "%s | Admin — VRD Exports",
   },
 };
 
@@ -21,7 +21,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f8fafc]">
+    <div className="flex min-h-screen bg-[#fafafa]">
       {/* Sidebar — desktop */}
       <div className="hidden lg:flex flex-shrink-0">
         <AdminSidebar />
@@ -30,16 +30,11 @@ export default async function AdminLayout({
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header */}
-        <div className="lg:hidden flex items-center justify-between bg-[#1e2840] px-4 py-3 border-b border-[#2d3754]">
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 bg-[#2563eb] rounded-lg flex items-center justify-center">
-              <span className="text-white text-xs font-bold">VRD</span>
-            </div>
-            <p className="text-sm font-bold text-white">Leave Management — Admin</p>
-          </div>
+        <div className="lg:hidden flex items-center justify-between bg-[#111827] px-4 py-3">
+          <p className="text-sm font-semibold text-white">VRD Exports — Admin</p>
         </div>
 
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1 overflow-auto p-6 md:p-8">{children}</main>
       </div>
     </div>
   );

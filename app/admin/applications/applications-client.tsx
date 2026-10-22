@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDateIndia, formatDateTime } from "@/lib/utils";
 import {
   Search,
-  Filter,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -16,7 +15,6 @@ import {
   RefreshCw,
   AlertCircle,
   FileText,
-  ChevronDown,
   Loader2,
 } from "lucide-react";
 
@@ -60,7 +58,6 @@ interface FilterState {
 interface Department { id: string; name: string; }
 interface LeaveType { id: string; name: string; }
 
-// Approval dialog
 interface ApprovalDialogState {
   open: boolean;
   applicationId: string;
@@ -72,7 +69,6 @@ interface ApprovalDialogState {
 
 export function ApplicationsClient() {
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   const [applications, setApplications] = useState<Application[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
@@ -101,7 +97,6 @@ export function ApplicationsClient() {
     error: null,
   });
 
-  // Load filter options
   useEffect(() => {
     Promise.all([
       fetch("/api/departments?includeInactive=false"),
@@ -134,7 +129,7 @@ export function ApplicationsClient() {
       setApplications(json.data ?? []);
       setPagination(json.pagination ?? { page: 1, pageSize: 20, total: 0, totalPages: 0 });
     } catch {
-      setError("Failed to load applications. Check your database connection.");
+      setError("Failed to load applications.");
     } finally {
       setLoading(false);
     }
@@ -166,8 +161,6 @@ export function ApplicationsClient() {
         body: JSON.stringify({
           action: dialog.action,
           remarks: dialog.remarks,
-          performedBy: "ADMIN",
-          performedByName: "Admin User",
         }),
       });
       const json = await res.json();
@@ -175,7 +168,6 @@ export function ApplicationsClient() {
         setDialog((d) => ({ ...d, loading: false, error: json.error || "Action failed" }));
         return;
       }
-      // Success
       setDialog({ open: false, applicationId: "", action: null, remarks: "", loading: false, error: null });
       await fetchApplications();
     } catch {
@@ -183,36 +175,34 @@ export function ApplicationsClient() {
     }
   }
 
-  const latestRemark = (app: Application) => app.approvalHistory[0]?.remarks;
-
   return (
-    <div className="p-6">
+    <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-[#0f172a]">Leave Applications</h1>
-          <p className="text-sm text-[#64748b] mt-0.5">
+          <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Applications</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
             {pagination.total} total application{pagination.total !== 1 ? "s" : ""}
           </p>
         </div>
         <button
           onClick={fetchApplications}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-3 py-2 text-sm text-[#475569] border border-[#e2e8f0] rounded-lg hover:bg-[#f8fafc] transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
         >
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </button>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-[#e2e8f0] p-4 mb-5 flex flex-wrap gap-3">
-        <div className="flex-1 min-w-48 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" />
+      <div className="bg-white border border-gray-200 rounded-xl p-3.5 mb-5 flex flex-wrap gap-2.5">
+        <div className="flex-1 min-w-[200px] relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             value={filters.search}
             onChange={(e) => { setFilters((f) => ({ ...f, search: e.target.value })); setPage(1); }}
-            placeholder="Search name, email, ID, reference..."
+            placeholder="Search name, email, reference..."
             className="form-input pl-9 text-sm"
           />
         </div>
@@ -220,7 +210,7 @@ export function ApplicationsClient() {
         <select
           value={filters.status}
           onChange={(e) => { setFilters((f) => ({ ...f, status: e.target.value })); setPage(1); }}
-          className="form-input text-sm w-auto min-w-36"
+          className="form-input text-sm w-auto min-w-[130px]"
         >
           <option value="">All Statuses</option>
           <option value="PENDING">Pending</option>
@@ -232,7 +222,7 @@ export function ApplicationsClient() {
         <select
           value={filters.departmentId}
           onChange={(e) => { setFilters((f) => ({ ...f, departmentId: e.target.value })); setPage(1); }}
-          className="form-input text-sm w-auto min-w-40"
+          className="form-input text-sm w-auto min-w-[150px]"
         >
           <option value="">All Departments</option>
           {departments.map((d) => (
@@ -243,9 +233,9 @@ export function ApplicationsClient() {
         <select
           value={filters.leaveTypeId}
           onChange={(e) => { setFilters((f) => ({ ...f, leaveTypeId: e.target.value })); setPage(1); }}
-          className="form-input text-sm w-auto min-w-40"
+          className="form-input text-sm w-auto min-w-[140px]"
         >
-          <option value="">All Leave Types</option>
+          <option value="">All Types</option>
           {leaveTypes.map((lt) => (
             <option key={lt.id} value={lt.id}>{lt.name}</option>
           ))}
@@ -254,27 +244,27 @@ export function ApplicationsClient() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4 mb-5">
-          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-lg p-3.5 mb-5">
+          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
+      {/* Table Card */}
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center">
-            <Loader2 className="w-8 h-8 text-[#2563eb] animate-spin mx-auto mb-3" />
-            <p className="text-sm text-[#64748b]">Loading applications...</p>
+          <div className="p-12 text-center">
+            <Loader2 className="w-6 h-6 text-gray-400 animate-spin mx-auto mb-2" />
+            <p className="text-sm text-gray-500">Loading applications…</p>
           </div>
         ) : applications.length === 0 ? (
           <div className="p-12 text-center">
-            <FileText className="w-12 h-12 text-[#cbd5e1] mx-auto mb-4" />
-            <p className="text-[#64748b] font-medium">No applications found</p>
-            <p className="text-sm text-[#94a3b8] mt-1">
+            <FileText className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+            <p className="text-sm font-medium text-gray-900">No applications found</p>
+            <p className="text-xs text-gray-500 mt-1">
               {filters.search || filters.status || filters.departmentId || filters.leaveTypeId
-                ? "Try adjusting your filters"
-                : "Applications will appear here once employees submit them"}
+                ? "Try adjusting your search filters"
+                : "Applications will appear here once submitted"}
             </p>
           </div>
         ) : (
@@ -285,12 +275,12 @@ export function ApplicationsClient() {
                   <th>Reference</th>
                   <th>Employee</th>
                   <th>Department</th>
-                  <th>Leave Type</th>
+                  <th>Type</th>
                   <th>Dates</th>
                   <th>Days</th>
                   <th>Status</th>
                   <th>Submitted</th>
-                  <th>Actions</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -299,53 +289,45 @@ export function ApplicationsClient() {
                     <td>
                       <Link
                         href={`/admin/applications/${app.id}`}
-                        className="text-[#2563eb] hover:underline font-mono text-xs font-semibold"
+                        className="font-mono text-xs font-medium text-gray-900 hover:underline"
                       >
                         {app.referenceNumber}
                       </Link>
                     </td>
                     <td>
                       <div>
-                        <p className="font-medium text-[#0f172a] text-sm">{app.employeeName}</p>
-                        <p className="text-xs text-[#64748b]">{app.employeeEmail}</p>
-                        {app.employeeIdNumber && (
-                          <p className="text-xs text-[#94a3b8]">{app.employeeIdNumber}</p>
-                        )}
+                        <p className="font-medium text-gray-900 text-sm">{app.employeeName}</p>
+                        <p className="text-xs text-gray-400">{app.employeeEmail}</p>
                       </div>
                     </td>
-                    <td className="text-sm text-[#374151] whitespace-nowrap">
+                    <td className="text-sm text-gray-600 whitespace-nowrap">
                       {app.departmentSnapshot}
                     </td>
-                    <td className="text-sm text-[#374151] whitespace-nowrap">
+                    <td className="text-sm text-gray-600 whitespace-nowrap">
                       {app.leaveTypeSnapshot}
                     </td>
                     <td className="whitespace-nowrap">
-                      <p className="text-xs text-[#374151]">
+                      <p className="text-xs text-gray-700 font-medium">
                         {formatDateIndia(app.startDate)}
                       </p>
-                      <p className="text-xs text-[#94a3b8]">
+                      <p className="text-[11px] text-gray-400">
                         to {formatDateIndia(app.endDate)}
                       </p>
                     </td>
-                    <td className="text-sm font-semibold text-[#374151] text-center">
+                    <td className="text-sm font-medium text-gray-700 text-center">
                       {app.totalDays}
                     </td>
                     <td>
                       <StatusBadge status={app.status} />
-                      {latestRemark(app) && (
-                        <p className="text-xs text-[#94a3b8] mt-1 max-w-[120px] truncate">
-                          {latestRemark(app)}
-                        </p>
-                      )}
                     </td>
-                    <td className="text-xs text-[#64748b] whitespace-nowrap">
+                    <td className="text-xs text-gray-400 whitespace-nowrap">
                       {formatDateTime(app.submittedAt)}
                     </td>
-                    <td>
-                      <div className="flex items-center gap-1">
+                    <td className="text-right">
+                      <div className="flex items-center justify-end gap-1">
                         <Link
                           href={`/admin/applications/${app.id}`}
-                          className="p-1.5 text-[#64748b] hover:text-[#2563eb] hover:bg-blue-50 rounded-md transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
                           title="View details"
                         >
                           <Eye className="w-4 h-4" />
@@ -354,14 +336,14 @@ export function ApplicationsClient() {
                           <>
                             <button
                               onClick={() => openDialog(app.id, "APPROVED")}
-                              className="p-1.5 text-[#64748b] hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors"
                               title="Approve"
                             >
                               <Check className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => openDialog(app.id, "DECLINED")}
-                              className="p-1.5 text-[#64748b] hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                               title="Decline"
                             >
                               <X className="w-4 h-4" />
@@ -379,63 +361,63 @@ export function ApplicationsClient() {
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-[#f1f5f9]">
-            <p className="text-xs text-[#64748b]">
+          <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
+            <p className="text-xs text-gray-500">
               Showing {(pagination.page - 1) * pagination.pageSize + 1}–
               {Math.min(pagination.page * pagination.pageSize, pagination.total)} of{" "}
               {pagination.total}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="p-1.5 border border-[#e2e8f0] rounded-lg disabled:opacity-40 hover:bg-[#f8fafc] transition-colors"
+                className="p-1.5 border border-gray-200 rounded-md disabled:opacity-30 hover:bg-gray-50 transition-colors"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-3.5 h-3.5" />
               </button>
-              <span className="text-sm text-[#374151] px-2">
-                Page {pagination.page} of {pagination.totalPages}
+              <span className="text-xs text-gray-600 px-2 font-medium">
+                {pagination.page} / {pagination.totalPages}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                 disabled={page >= pagination.totalPages}
-                className="p-1.5 border border-[#e2e8f0] rounded-lg disabled:opacity-40 hover:bg-[#f8fafc] transition-colors"
+                className="p-1.5 border border-gray-200 rounded-md disabled:opacity-30 hover:bg-gray-50 transition-colors"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Approval Dialog */}
+      {/* Decision Modal */}
       {dialog.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-            <h2 className="text-lg font-bold text-[#0f172a] mb-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-xl max-w-sm w-full p-5">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">
               {dialog.action === "APPROVED" ? "Approve Application" :
                dialog.action === "DECLINED" ? "Decline Application" :
                "Cancel Application"}
             </h2>
-            <p className="text-sm text-[#64748b] mb-5">
+            <p className="text-xs text-gray-500 mb-4">
               {dialog.action === "APPROVED"
-                ? "This will approve the leave application and notify the employee."
+                ? "This will approve the leave and notify the employee."
                 : dialog.action === "DECLINED"
-                ? "This will decline the leave application. Please add a reason."
-                : "This will cancel the approved leave application."}
+                ? "Please provide remarks explaining why the leave was declined."
+                : "This will cancel the application."}
             </p>
 
             {dialog.error && (
-              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-700">{dialog.error}</p>
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-md p-2.5 mb-3">
+                <AlertCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-red-700">{dialog.error}</p>
               </div>
             )}
 
-            <div className="mb-5">
-              <label className="form-label">
-                Remarks / Notes
-                {dialog.action === "DECLINED" && <span className="text-red-500 ml-1">*</span>}
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Remarks
+                {dialog.action === "DECLINED" && <span className="text-red-500 ml-0.5">*</span>}
               </label>
               <textarea
                 value={dialog.remarks}
@@ -444,45 +426,41 @@ export function ApplicationsClient() {
                 placeholder={
                   dialog.action === "DECLINED"
                     ? "Reason for declining (required)"
-                    : "Optional remarks for the employee"
+                    : "Optional remarks"
                 }
-                className="form-input resize-none"
+                className="form-input text-xs resize-none"
               />
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={() =>
                   setDialog({ open: false, applicationId: "", action: null, remarks: "", loading: false, error: null })
                 }
                 disabled={dialog.loading}
-                className="flex-1 py-2.5 text-sm font-semibold border border-[#e2e8f0] text-[#374151] rounded-lg hover:bg-[#f8fafc] transition-colors disabled:opacity-50"
+                className="flex-1 py-2 text-xs font-medium border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={submitApproval}
                 disabled={dialog.loading || (dialog.action === "DECLINED" && !dialog.remarks.trim())}
-                className={`flex-1 py-2.5 text-sm font-semibold text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+                className={`flex-1 py-2 text-xs font-medium text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 ${
                   dialog.action === "APPROVED"
                     ? "bg-green-600 hover:bg-green-700"
                     : dialog.action === "DECLINED"
                     ? "bg-red-600 hover:bg-red-700"
-                    : "bg-slate-600 hover:bg-slate-700"
+                    : "bg-gray-800 hover:bg-gray-900"
                 }`}
               >
                 {dialog.loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   dialog.action === "APPROVED" ? "Approve" :
-                  dialog.action === "DECLINED" ? "Decline" : "Cancel Application"
+                  dialog.action === "DECLINED" ? "Decline" : "Confirm"
                 )}
               </button>
             </div>
-
-            <p className="text-[10px] text-[#94a3b8] text-center mt-3">
-              ⚠️ Dev note: Approval endpoints are not authenticated in this version.
-            </p>
           </div>
         </div>
       )}

@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { StatusLookupSchema, type StatusLookupInput } from "@/lib/validations";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDateLong, formatDateTime } from "@/lib/utils";
-import { Search, Loader2, AlertCircle, Calendar, Clock, FileText } from "lucide-react";
+import { Search, Loader2, AlertCircle } from "lucide-react";
 
 interface StatusResult {
   referenceNumber: string;
@@ -53,30 +53,29 @@ export function LeaveStatusClient() {
       if (res.ok && json.data) {
         setResult(json.data);
       } else if (res.status === 429) {
-        setError("Too many lookups. Please wait a few minutes before trying again.");
+        setError("Too many lookups. Please wait a few minutes.");
       } else {
         setError(
           json.error ||
-            "No application found. Please check your reference number and email."
+            "No application found. Check your reference number and email."
         );
       }
     } catch {
-      setError("Network error. Please check your connection and try again.");
+      setError("Network error. Please check your connection.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Lookup Form */}
-      <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-6">
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
         <form onSubmit={handleSubmit(onLookup)} noValidate>
           <div className="space-y-4">
             <div>
-              <label className="form-label">
-                Application Reference Number
-                <span className="text-red-500 ml-1">*</span>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Reference Number <span className="text-red-500">*</span>
               </label>
               <input
                 {...register("referenceNumber")}
@@ -89,33 +88,32 @@ export function LeaveStatusClient() {
             </div>
 
             <div>
-              <label className="form-label">
-                Registered Email Address
-                <span className="text-red-500 ml-1">*</span>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Email Address <span className="text-red-500">*</span>
               </label>
               <input
                 {...register("employeeEmail")}
                 type="email"
-                placeholder="your.email@vrdexports.com"
+                placeholder="you@vrdexports.com"
                 className={`form-input ${errors.employeeEmail ? "error" : ""}`}
               />
               {errors.employeeEmail && (
                 <p className="form-error">{errors.employeeEmail.message}</p>
               )}
-              <p className="text-xs text-[#94a3b8] mt-1">
-                Enter the email address you used when submitting the application.
+              <p className="text-xs text-gray-400 mt-1">
+                The email you used when submitting the application.
               </p>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full inline-flex items-center justify-center gap-2 bg-[#2563eb] text-white font-semibold py-3 rounded-lg hover:bg-[#1d4ed8] disabled:opacity-60 transition-colors text-sm"
+              className="w-full inline-flex items-center justify-center gap-2 bg-gray-900 text-white font-medium py-2.5 rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors text-sm"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Looking up...
+                  Looking up…
                 </>
               ) : (
                 <>
@@ -130,98 +128,61 @@ export function LeaveStatusClient() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 rounded-lg p-3.5">
+          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
       {/* Result */}
       {result && (
-        <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm overflow-hidden">
-          {/* Status Header */}
-          <div
-            className={`px-6 py-5 border-b border-[#f1f5f9] ${
-              result.status === "APPROVED"
-                ? "bg-green-50"
-                : result.status === "DECLINED"
-                ? "bg-red-50"
-                : result.status === "CANCELLED"
-                ? "bg-slate-50"
-                : "bg-amber-50"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-[#64748b] uppercase tracking-widest mb-1">
-                  Application Status
-                </p>
-                <p className="text-lg font-bold text-[#0f172a] font-mono">
-                  {result.referenceNumber}
-                </p>
-              </div>
-              <StatusBadge status={result.status} className="text-sm px-4 py-1.5" />
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          {/* Header */}
+          <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-400 mb-0.5">Application</p>
+              <p className="text-sm font-semibold text-gray-900 font-mono">
+                {result.referenceNumber}
+              </p>
             </div>
+            <StatusBadge status={result.status} className="text-xs px-3 py-1" />
           </div>
 
-          {/* Details */}
-          <div className="p-6">
-            <div className="grid sm:grid-cols-2 gap-y-5 gap-x-8">
+          {/* Details grid */}
+          <div className="px-6 py-5">
+            <div className="grid sm:grid-cols-2 gap-5">
+              <DetailRow label="Employee" value={result.employeeName} />
+              <DetailRow label="Leave Type" value={result.leaveType} />
+              <DetailRow label="From" value={formatDateLong(result.startDate)} />
+              <DetailRow label="To" value={formatDateLong(result.endDate)} />
               <DetailRow
-                icon={<FileText className="w-4 h-4" />}
-                label="Employee"
-                value={result.employeeName}
-              />
-              <DetailRow
-                icon={<Calendar className="w-4 h-4" />}
-                label="Leave Type"
-                value={result.leaveType}
-              />
-              <DetailRow
-                icon={<Calendar className="w-4 h-4" />}
-                label="From"
-                value={formatDateLong(result.startDate)}
-              />
-              <DetailRow
-                icon={<Calendar className="w-4 h-4" />}
-                label="To"
-                value={formatDateLong(result.endDate)}
-              />
-              <DetailRow
-                icon={<Clock className="w-4 h-4" />}
-                label="Total Days"
+                label="Duration"
                 value={`${result.totalDays} day${result.totalDays !== 1 ? "s" : ""}${result.isHalfDay ? " (half-day)" : ""}`}
               />
-              <DetailRow
-                icon={<Clock className="w-4 h-4" />}
-                label="Submitted At"
-                value={formatDateTime(result.submittedAt)}
-              />
+              <DetailRow label="Submitted" value={formatDateTime(result.submittedAt)} />
             </div>
 
             {result.latestRemarks && (
-              <div className="mt-5 p-4 bg-[#f8fafc] rounded-lg border border-[#e2e8f0]">
-                <p className="text-xs font-semibold text-[#64748b] uppercase tracking-wider mb-2">
-                  Remarks
-                </p>
-                <p className="text-sm text-[#374151]">{result.latestRemarks}</p>
+              <div className="mt-5 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <p className="text-xs font-medium text-gray-500 mb-1.5">Remarks</p>
+                <p className="text-sm text-gray-700">{result.latestRemarks}</p>
               </div>
             )}
 
-            <p className="text-xs text-[#94a3b8] mt-5">
+            <p className="text-xs text-gray-400 mt-4">
               Last updated: {formatDateTime(result.lastUpdatedAt)}
             </p>
           </div>
 
-          {/* Guidance based on status */}
-          <div className="px-6 py-4 bg-[#f8fafc] border-t border-[#f1f5f9]">
-            <p className="text-xs text-[#64748b]">
+          {/* Footer guidance */}
+          <div className="px-6 py-3.5 bg-gray-50 border-t border-gray-100">
+            <p className="text-xs text-gray-500">
               {result.status === "PENDING" &&
-                "Your application is under review. You will be notified by email once a decision is made."}
+                "Your application is under review. You'll be notified by email once a decision is made."}
               {result.status === "APPROVED" &&
-                "Your leave has been approved. Please ensure handover arrangements are complete."}
+                "Your leave has been approved. Please complete handover arrangements."}
               {result.status === "DECLINED" &&
-                "Your leave application was not approved. Please contact your manager or HR for details."}
+                "Your application was not approved. Contact your manager or HR for details."}
               {result.status === "CANCELLED" &&
                 "This application has been cancelled."}
             </p>
@@ -232,24 +193,11 @@ export function LeaveStatusClient() {
   );
 }
 
-function DetailRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="w-8 h-8 rounded-lg bg-[#f1f5f9] flex items-center justify-center text-[#64748b] flex-shrink-0">
-        {icon}
-      </div>
-      <div>
-        <p className="text-xs text-[#94a3b8] font-medium">{label}</p>
-        <p className="text-sm text-[#0f172a] font-semibold mt-0.5">{value}</p>
-      </div>
+    <div>
+      <p className="text-xs text-gray-400">{label}</p>
+      <p className="text-sm text-gray-900 font-medium mt-0.5">{value}</p>
     </div>
   );
 }
