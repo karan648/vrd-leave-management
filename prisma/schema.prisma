@@ -167,6 +167,10 @@ model LeaveApplication {
   
   // Status
   status                LeaveStatus @default(PENDING)
+
+  // Approval identity — username is snapshotted for historical accuracy
+  approvedById          String?
+  approvedByUsername    String?
   
   // Metadata
   submittedAt           DateTime    @default(now())
@@ -178,6 +182,7 @@ model LeaveApplication {
   // Relations
   department       Department?        @relation(fields: [departmentId], references: [id])
   leaveType        LeaveType?         @relation(fields: [leaveTypeId], references: [id])
+  approvedBy       AdminUser?         @relation("LeaveApplicationApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
   approvalHistory  ApprovalHistory[]
   notifications    NotificationLog[]
 
@@ -187,6 +192,7 @@ model LeaveApplication {
   @@index([employeeIdNumber])
   @@index([departmentId])
   @@index([leaveTypeId])
+  @@index([approvedById])
   @@index([submittedAt])
   @@index([startDate, endDate])
   @@map("leave_applications")
@@ -242,6 +248,8 @@ model AdminUser {
   
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+
+  approvedApplications LeaveApplication[] @relation("LeaveApplicationApprovedBy")
 
   @@index([email])
   @@index([role])

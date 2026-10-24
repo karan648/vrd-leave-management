@@ -72,7 +72,7 @@ export function UsersClient() {
   async function fetchUsers() {
     try {
       setLoading(true);
-      const res = await fetch("/api/users");
+      const res = await fetch("/api/admin-users");
       const data = await res.json();
       if (res.ok && data.data) {
         setUsers(data.data);
@@ -96,7 +96,7 @@ export function UsersClient() {
     const generatedPwd = createForm.password.trim() || generateRandomPassword();
 
     try {
-      const res = await fetch("/api/users", {
+      const res = await fetch("/api/admin-users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -143,10 +143,10 @@ export function UsersClient() {
     setErrorMessage(null);
 
     try {
-      const res = await fetch(`/api/users/${resetModalUser.id}/reset-password`, {
-        method: "POST",
+      const res = await fetch(`/api/admin-users/${resetModalUser.id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newPassword }),
+        body: JSON.stringify({ password: newPassword }),
       });
 
       const json = await res.json();
@@ -164,7 +164,7 @@ export function UsersClient() {
 
   async function toggleStatus(user: AdminUser) {
     try {
-      const res = await fetch(`/api/users/${user.id}`, {
+      const res = await fetch(`/api/admin-users/${user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !user.isActive }),

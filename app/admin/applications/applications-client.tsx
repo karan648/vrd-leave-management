@@ -30,6 +30,7 @@ interface Application {
   endDate: string;
   totalDays: number;
   status: "PENDING" | "APPROVED" | "DECLINED" | "CANCELLED";
+  approvedByUsername?: string | null;
   reportingManagerName: string;
   handoverPersonName?: string | null;
   submittedAt: string;
@@ -37,8 +38,14 @@ interface Application {
     remarks?: string | null;
     toStatus: string;
     performedAt: string;
+    performedBy?: string;
     performedByName?: string | null;
   }>;
+}
+
+function getDecisionBy(application: Application): string | null {
+  const decision = application.approvalHistory[0];
+  return application.approvedByUsername || decision?.performedByName || decision?.performedBy || null;
 }
 
 interface Pagination {
@@ -279,6 +286,7 @@ export function ApplicationsClient() {
                   <th>Dates</th>
                   <th>Days</th>
                   <th>Status</th>
+                  <th>Decision By</th>
                   <th>Submitted</th>
                   <th className="text-right">Actions</th>
                 </tr>
@@ -319,6 +327,9 @@ export function ApplicationsClient() {
                     </td>
                     <td>
                       <StatusBadge status={app.status} />
+                    </td>
+                    <td className="text-sm text-gray-600 whitespace-nowrap">
+                      {getDecisionBy(app) || "—"}
                     </td>
                     <td className="text-xs text-gray-400 whitespace-nowrap">
                       {formatDateTime(app.submittedAt)}

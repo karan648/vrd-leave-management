@@ -185,8 +185,6 @@ export const ApprovalActionSchema = z.object({
     .trim()
     .optional()
     .or(z.literal("")),
-  performedBy: z.string().default("SYSTEM"),
-  performedByName: z.string().optional(),
 });
 
 export type ApprovalActionInput = z.infer<typeof ApprovalActionSchema>;

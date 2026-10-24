@@ -48,6 +48,7 @@ interface ApplicationDetail {
   contactDuringLeave?: string | null;
   additionalNotes?: string | null;
   status: "PENDING" | "APPROVED" | "DECLINED" | "CANCELLED";
+  approvedByUsername?: string | null;
   submittedAt: string;
   approvalHistory: Array<{
     id: string;
@@ -92,8 +93,6 @@ export function ApplicationDetailClient({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [currentUser, setCurrentUser] = useState<{ fullName: string; role: string; email: string } | null>(null);
-
   const [actionModal, setActionModal] = useState<"APPROVED" | "DECLINED" | null>(null);
   const [remarks, setRemarks] = useState("");
   const [processing, setProcessing] = useState(false);
@@ -104,17 +103,6 @@ export function ApplicationDetailClient({ id }: { id: string }) {
 
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "timeline" | "notifications">("overview");
-
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.authenticated && data.user) {
-          setCurrentUser(data.user);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   const fetchDetail = useCallback(async () => {
     setLoading(true);
@@ -168,8 +156,6 @@ export function ApplicationDetailClient({ id }: { id: string }) {
         body: JSON.stringify({
           action: actionModal,
           remarks: remarks.trim() || undefined,
-          performedBy: currentUser?.role || "ADMIN",
-          performedByName: currentUser?.fullName || "Admin Approver",
         }),
       });
 
@@ -249,6 +235,9 @@ export function ApplicationDetailClient({ id }: { id: string }) {
   }
 
   const latestApproval = app.approvalHistory?.[0];
+  const approvedHistoryEntry = app.approvalHistory?.find((item) => item.toStatus === "APPROVED");
+  const approvedBy = app.approvedByUsername || approvedHistoryEntry?.performedByName || approvedHistoryEntry?.performedBy;
+  const latestDecisionBy = latestApproval?.performedByName || latestApproval?.performedBy;
 
   return (
     <div>
@@ -408,8 +397,8 @@ export function ApplicationDetailClient({ id }: { id: string }) {
               <div>
                 <p className="text-sm font-medium text-green-950">Approved</p>
                 <p className="text-xs text-green-700 mt-0.5">
-                  {latestApproval?.performedByName
-                    ? `Sanctioned by ${latestApproval.performedByName} on ${formatDateTime(latestApproval.performedAt)}`
+                  {approvedBy
+                    ? `Sanctioned by ${approvedBy} on ${formatDateTime(approvedHistoryEntry?.performedAt || app.submittedAt)}`
                     : `Approved on ${formatDateLong(app.submittedAt)}`}
                   {latestApproval?.remarks && ` — "${latestApproval.remarks}"`}
                 </p>
@@ -425,8 +414,8 @@ export function ApplicationDetailClient({ id }: { id: string }) {
               <div>
                 <p className="text-sm font-medium text-red-950">Declined</p>
                 <p className="text-xs text-red-700 mt-0.5">
-                  {latestApproval?.performedByName
-                    ? `Declined by ${latestApproval.performedByName} on ${formatDateTime(latestApproval.performedAt)}`
+                  {latestDecisionBy
+                    ? `Declined by ${latestDecisionBy} on ${formatDateTime(latestApproval.performedAt)}`
                     : "Application declined"}
                   {latestApproval?.remarks && ` — "${latestApproval.remarks}"`}
                 </p>
@@ -730,6 +719,10 @@ export function ApplicationDetailClient({ id }: { id: string }) {
                 <div className="flex justify-between">
                   <span className="text-gray-400">Department</span>
                   <span className="text-gray-700">{app.departmentSnapshot}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Approved By</span>
+                  <span className="text-gray-700">{approvedBy || "—"}</span>
                 </div>
                 {app.contactDuringLeave && (
                   <div className="flex justify-between">

@@ -2,11 +2,12 @@
 // API: GET /api/leave-applications/[id] — Full application details (Admin)
 // API: PATCH /api/leave-applications/[id] — Update status (Admin)
 //
-// ⚠️ SECURITY NOTE: Requires authentication before production use.
+// Admin-only route; the active session supplies the audit identity.
 // =============================================================================
 
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth";
 import { ApprovalActionSchema } from "@/lib/validations";
 import { sendStatusUpdateNotifications } from "@/lib/email";
 
@@ -17,6 +18,11 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (!auth.authenticated) {
+    return Response.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   const { id } = await params;
 
   const application = await prisma.leaveApplication.findUnique({
@@ -45,6 +51,11 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth();
+  if (!auth.authenticated) {
+    return Response.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   const { id } = await params;
 
   let body: unknown;
@@ -63,7 +74,9 @@ export async function PATCH(
     );
   }
 
-  const { action, remarks, performedBy, performedByName } = parsed.data;
+  const { action, remarks } = parsed.data;
+  const performedBy = auth.user.username?.trim() || auth.user.email;
+  const performedByName = auth.user.fullName?.trim() || performedBy;
 
   // Load application with optimistic lock check
   const application = await prisma.leaveApplication.findUnique({
@@ -116,8 +129,19 @@ export async function PATCH(
           id,
           status: application.status, // Optimistic lock: only update if status hasn't changed
         },
-        data: { status: action as "APPROVED" | "DECLINED" | "CANCELLED" },
+        data: {
+          status: action as "APPROVED" | "DECLINED" | "CANCELLED",
+        },
       });
+
+      if (action === "APPROVED") {
+        await tx.$executeRaw`
+          UPDATE "leave_applications"
+          SET "approvedById" = ${auth.user.id},
+              "approvedByUsername" = ${auth.user.username || auth.user.fullName || auth.user.email}
+          WHERE "id" = ${id}
+        `;
+      }
 
       await tx.approvalHistory.create({
         data: {
@@ -125,8 +149,8 @@ export async function PATCH(
           fromStatus: application.status as "PENDING" | "APPROVED" | "DECLINED" | "CANCELLED",
           toStatus: action as "APPROVED" | "DECLINED" | "CANCELLED",
           remarks: remarks || null,
-          performedBy: performedBy || "SYSTEM",
-          performedByName: performedByName || null,
+          performedBy,
+          performedByName,
         },
       });
 

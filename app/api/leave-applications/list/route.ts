@@ -1,20 +1,23 @@
 // =============================================================================
 // API: GET /api/leave-applications (Admin - List with filters/pagination)
 //
-// ⚠️ SECURITY NOTE: This endpoint requires authentication before production use.
-// It is currently open and protected only by being under /api/.
-// Add authentication middleware before public deployment.
+// Admin-only route; requires an active session.
 // =============================================================================
 
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth";
 import { ApplicationsQuerySchema } from "@/lib/validations";
-import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (!auth.authenticated) {
+    return Response.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const rawParams = Object.fromEntries(searchParams.entries());
 
@@ -103,12 +106,14 @@ export async function GET(request: NextRequest) {
         submittedAt: true,
         updatedAt: true,
         approvalHistory: {
+          where: { toStatus: { in: ["APPROVED", "DECLINED"] } },
           orderBy: { performedAt: "desc" },
           take: 1,
           select: {
             remarks: true,
             toStatus: true,
             performedAt: true,
+            performedBy: true,
             performedByName: true,
           },
         },
